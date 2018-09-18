@@ -119,7 +119,11 @@ static BOOL GetAdTrackingEnabled()
 
 - (void)setupFlushTimer
 {
-    self.flushTimer = [NSTimer scheduledTimerWithTimeInterval:30.0 target:self selector:@selector(flush) userInfo:nil repeats:YES];
+    self.flushTimer = [NSTimer scheduledTimerWithTimeInterval:self.configuration.flushInterval
+                                                       target:self
+                                                     selector:@selector(flush)
+                                                     userInfo:nil
+                                                      repeats:YES];
 }
 
 /*
@@ -263,14 +267,14 @@ static CTTelephonyNetworkInfo *_telephonyNetworkInfo;
 - (void)beginBackgroundTask
 {
     [self endBackgroundTask];
-    
+
     seg_dispatch_specific_sync(_backgroundTaskQueue, ^{
         id<SEGApplicationProtocol> application = [self.analytics configuration].application;
         if (application) {
             self.flushTaskID = [application seg_beginBackgroundTaskWithName:@"Segmentio.Flush"
                                                           expirationHandler:^{
-                [self endBackgroundTask];
-            }];
+                                                              [self endBackgroundTask];
+                                                          }];
         }
     });
 }
@@ -288,7 +292,7 @@ static CTTelephonyNetworkInfo *_telephonyNetworkInfo;
             if (application) {
                 [application seg_endBackgroundTask:self.flushTaskID];
             }
-            
+
             self.flushTaskID = UIBackgroundTaskInvalid;
         }
     });
@@ -461,10 +465,8 @@ static CTTelephonyNetworkInfo *_telephonyNetworkInfo;
 - (void)queuePayload:(NSDictionary *)payload
 {
     @try {
-        if (self.queue.count > 1000) {
-            // Remove the oldest element.
-            [self.queue removeObjectAtIndex:0];
-        }
+        // Trim the queue to maxQueueSize - 1 before we add a new element.
+        trimQueue(self.queue, self.analytics.configuration.maxQueueSize - 1);
         [self.queue addObject:payload];
         [self persistQueue];
         [self flushQueueByLength];
@@ -517,8 +519,8 @@ static CTTelephonyNetworkInfo *_telephonyNetworkInfo;
 - (void)reset
 {
     [self dispatchBackgroundAndWait:^{
-        [self.storage removeKey:SEGUserIdKey];
 #if TARGET_OS_TV
+        [self.storage removeKey:SEGUserIdKey];
         [self.storage removeKey:SEGTraitsKey];
 #else
         [self.storage removeKey:kSEGUserIdFilename];

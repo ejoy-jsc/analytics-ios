@@ -12,11 +12,13 @@
 
 @implementation UIApplication (SEGApplicationProtocol)
 
-- (UIBackgroundTaskIdentifier)seg_beginBackgroundTaskWithName:(nullable NSString *)taskName expirationHandler:(void(^ __nullable)(void))handler {
+- (UIBackgroundTaskIdentifier)seg_beginBackgroundTaskWithName:(nullable NSString *)taskName expirationHandler:(void (^__nullable)(void))handler
+{
     return [self beginBackgroundTaskWithName:taskName expirationHandler:handler];
 }
 
-- (void)seg_endBackgroundTask:(UIBackgroundTaskIdentifier)identifier {
+- (void)seg_endBackgroundTask:(UIBackgroundTaskIdentifier)identifier
+{
     [self endBackgroundTask:identifier];
 }
 
@@ -53,6 +55,8 @@
         self.enableAdvertisingTracking = YES;
         self.shouldUseBluetooth = NO;
         self.flushAt = 20;
+        self.flushInterval = 30;
+        self.maxQueueSize = 1000;
         _factories = [NSMutableArray array];
         Class applicationClass = NSClassFromString(@"UIApplication");
         if (applicationClass) {

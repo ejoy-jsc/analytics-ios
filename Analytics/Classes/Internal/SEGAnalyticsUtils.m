@@ -19,9 +19,24 @@ NSString *iso8601FormattedString(NSDate *date)
     dispatch_once(&onceToken, ^{
         dateFormatter = [[NSDateFormatter alloc] init];
         dateFormatter.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
-        dateFormatter.dateFormat = @"yyyy-MM-dd'T'HH:mm:ss.SSSZ";
+        dateFormatter.dateFormat = @"yyyy'-'MM'-'dd'T'HH':'mm':'ss.SSS'Z'";
+        dateFormatter.timeZone = [NSTimeZone timeZoneForSecondsFromGMT:0];
     });
     return [dateFormatter stringFromDate:date];
+}
+
+/** trim the queue so that it contains only upto `max` number of elements. */
+void trimQueue(NSMutableArray *queue, NSUInteger max)
+{
+    if (queue.count < max) {
+        return;
+    }
+
+    // Previously we didn't cap the queue. Hence there are cases where
+    // the queue may already be larger than 1000 events. Delete as many
+    // events as required to trim the queue size.
+    NSRange range = NSMakeRange(0, queue.count - max);
+    [queue removeObjectsInRange:range];
 }
 
 // Async Utils
@@ -44,9 +59,10 @@ void seg_dispatch_specific(dispatch_queue_t queue, dispatch_block_t block,
                            BOOL waitForCompletion)
 {
     dispatch_block_t autoreleasing_block = ^{
-      @autoreleasepool {
-        block();
-      }
+        @autoreleasepool
+        {
+            block();
+        }
     };
     if (dispatch_get_specific((__bridge const void *)queue)) {
         autoreleasing_block();
@@ -146,6 +162,7 @@ static id SEGCoerceJSONObject(id obj)
 
 static void AssertDictionaryTypes(id dict)
 {
+#ifdef DEBUG
     assert([dict isKindOfClass:[NSDictionary class]]);
     for (id key in dict) {
         assert([key isKindOfClass:[NSString class]]);
@@ -159,6 +176,7 @@ static void AssertDictionaryTypes(id dict)
                [value isKindOfClass:[NSDate class]] ||
                [value isKindOfClass:[NSURL class]]);
     }
+#endif
 }
 
 NSDictionary *SEGCoerceDictionary(NSDictionary *dict)
